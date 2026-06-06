@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 import { Camera, Mic, Plus, X } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 export default function IngredientScanner({ ingredients, setIngredients, isDark }) {
   const fileRef = useRef()

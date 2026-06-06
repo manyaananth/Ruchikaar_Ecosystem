@@ -1,8 +1,10 @@
-import requests, json
+import requests, json, sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 print("=" * 60)
 print("COMPREHENSIVE RUCHIKAAR ENDPOINT TEST")
 print("=" * 60)
+
 
 # TEST 1: Ingredient-based recipe with specific ingredients
 print("\n[TEST 1] /api/recipe/generate — Spinach + Chickpea + Lemon")

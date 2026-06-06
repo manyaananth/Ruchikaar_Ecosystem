@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Search, Plus, Trash2, Edit2, AlertCircle, ShoppingCart, RefreshCw, Camera, Mic, ReceiptText } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 export default function FridgeInventory({ ctx }) {
   const { isDark, user, setScreen } = ctx

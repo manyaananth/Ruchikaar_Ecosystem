@@ -1,0 +1,12 @@
+{
+  "appId": "com.manya.ruchikaar",
+  "appName": "Ruchikaar",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

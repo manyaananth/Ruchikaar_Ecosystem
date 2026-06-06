@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { ArrowLeft, Bookmark, Trash2, ChefHat, Clock, Loader } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 export default function SavedRecipesPage({ ctx }) {
   const { setScreen, user, isDark } = ctx

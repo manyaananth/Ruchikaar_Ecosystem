@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { User, Lock, MapPin, Phone, ArrowLeft, Save, Check, Eye, EyeOff } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 const HEALTH_GOALS = ["balanced diet","weight loss","muscle gain","low carb","high protein","diabetic friendly","heart healthy","vegetarian","vegan"]
 

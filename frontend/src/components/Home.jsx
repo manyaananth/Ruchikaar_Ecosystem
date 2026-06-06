@@ -1,7 +1,6 @@
 import { useState } from "react"
 import SpinWheel from "./SpinWheel"
 import IngredientInput from "./IngredientInput"
-import HealthAuditTab from "./HealthAuditTab"
 import TopNav from "./TopNav"
 import RegionalRandom from "./RegionalRandom"
 
@@ -26,13 +25,6 @@ const TABS = [
     emoji: "🍛",
     desc: "North & South Indian dishes",
     gradient: "linear-gradient(135deg,#a855f7,#7c3aed)"
-  },
-  {
-    id: "health",
-    label: "Health Audit",
-    emoji: "🏥",
-    desc: "Scan & rate food labels",
-    gradient: "linear-gradient(135deg,#3b82f6,#2563eb)"
   },
 ]
 
@@ -236,7 +228,6 @@ export default function Home({ ctx }) {
             {tab === "wheel"      && <SpinWheel ctx={ctx} />}
             {tab === "ingredient" && <IngredientInput ctx={ctx} />}
             {tab === "regional"   && <RegionalRandom ctx={ctx} />}
-            {tab === "health"     && <HealthAuditTab ctx={ctx} />}
           </div>
         </div>
       </div>

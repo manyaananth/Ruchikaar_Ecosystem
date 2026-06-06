@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
-import requests, base64
+import requests, base64, os
 
 vision_bp = Blueprint("vision", __name__)
+
+OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 @vision_bp.route("/scan", methods=["POST"])
 def scan_ingredients():
@@ -12,7 +14,7 @@ def scan_ingredients():
     image_data = base64.b64encode(file.read()).decode("utf-8")
 
     try:
-        response = requests.post("http://localhost:11434/api/generate", json={
+        response = requests.post(f"{OLLAMA_BASE}/api/generate", json={
             "model": "llava",
             "prompt": "Identify the raw food ingredients in this image (e.g. tomato, broccoli, onion, garlic). Return ONLY a comma-separated list of the names in lowercase. Do not include any other text, sentences, or punctuation other than commas.",
             "images": [image_data],

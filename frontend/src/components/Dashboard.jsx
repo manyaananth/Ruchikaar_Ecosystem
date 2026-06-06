@@ -3,7 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber"
 import { Environment, OrbitControls } from "@react-three/drei"
 import * as THREE from "three"
 import { Sun, Moon, Camera, ChefHat, Activity } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 function FoodSphere({ isHovered }) {
   const meshRef = useRef()

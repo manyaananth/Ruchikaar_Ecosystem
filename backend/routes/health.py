@@ -60,9 +60,11 @@ def label_scan():
     """
     Ingredient & food health analyser.
     Upload any image — raw ingredients, cooked food, or a packaged label.
-    LLaVA identifies ALL visible ingredients, then gives a health rating based on them.
+    LLaVA identifies ALL visible ingredients + hidden nasties, then gives a health rating.
     """
-    import requests, base64, json, re
+    import requests as req, base64, json, re, os
+    OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
     file = request.files.get("image")
     if not file:
         return jsonify({"error": "No image"}), 400
@@ -70,144 +72,194 @@ def label_scan():
     image_data = base64.b64encode(file.read()).decode("utf-8")
 
     prompt = (
-        "You are a professional nutritionist and food scientist. Analyse this food image carefully. You must decode complex packaged food labels and nutritional information.\n\n"
-        "STEP 1 — IDENTIFY: List ALL visible food items, ingredients, or food products in the image. "
-        "Look for: raw vegetables, fruits, grains, legumes, dairy products, meat/fish/poultry, spices, oils, "
-        "packaged food labels, cooked dishes, or any other food items. Explicitly look for Artificial Food Colors (e.g., Tartrazine, Sunset Yellow, Carmoisine), Preservatives, Additives (MSG, artificial flavors), Saturated Fat, and Trans Fat.\n\n"
-        "STEP 2 — ANALYSE: Based ONLY on the specific ingredients you identified in Step 1, "
-        "calculate the nutritional values for a single typical serving of what is shown (or per 100g if it's raw ingredients), decoding numerical values from packets if visible. "
-        "Your nutrition estimates MUST reflect the actual ingredients seen — do not output all zeros.\n\n"
-        "STEP 3 — HEALTH RATING: Score the overall healthiness of these identified ingredients:\n"
-        "- Fresh vegetables, fruits, legumes, whole grains = high health score (70-100)\n"
-        "- Mixed dishes with some vegetables and protein = moderate score (45-69)\n"
-        "- Processed foods, high sugar, high sodium, deep-fried items = low score (0-44)\n\n"
-        "If the image is unclear, not food-related, or you cannot identify any food items, "
-        "set 'not_food_image' to true.\n\n"
-        "Respond ONLY with this exact JSON — no markdown, no extra text:\n"
-        "{\"product_name\": \"descriptive name of identified food/dish\", "
-        "\"serving_size\": \"typical serving size\", "
+        "You are a food scientist and nutritionist. Look at this image and identify ALL food items visible.\n\n"
+        "For packaged food: read the ingredients list on the label carefully.\n"
+        "For raw ingredients/cooked food: identify what you can see.\n\n"
+        "IMPORTANT - Specifically look for and flag these hidden harmful ingredients:\n"
+        "Palm Oil, Hydrogenated Vegetable Oil, Trans Fat, Partially Hydrogenated Oil,\n"
+        "Tartrazine (E102), Sunset Yellow (E110), Carmoisine (E122), Allura Red (E129),\n"
+        "MSG / Monosodium Glutamate (E621), Sodium Benzoate (E211),\n"
+        "Sulphur Dioxide (E220), Potassium Bromate, TBHQ (E319), BHA (E320), BHT (E321),\n"
+        "High Fructose Corn Syrup, Maida (Refined Flour), Artificial Colours, Artificial Flavours.\n\n"
+        "Estimate the nutrition per 100g or per one serving shown.\n\n"
+        "RESPOND ONLY with this exact JSON format (no markdown fences, no extra text):\n"
+        "{\"product_name\": \"descriptive name\", "
+        "\"serving_size\": \"100g or 1 piece etc\", "
         "\"calories\": 0, \"protein_g\": 0, \"carbs_g\": 0, \"fat_g\": 0, "
         "\"sugar_g\": 0, \"sodium_mg\": 0, \"fiber_g\": 0, "
-        "\"ingredients_identified\": [\"specific ingredient 1\", \"specific ingredient 2\", \"specific ingredient 3\"], "
-        "\"health_attributes\": [\"e.g. rich in vitamins\", \"e.g. high in fibre\"], "
-        "\"health_concerns\": [\"e.g. high in saturated fat\", \"e.g. Contains Tartrazine\", \"e.g. artificial flavors\"], "
-        "\"ingredient_health_score\": 75, "
+        "\"ingredients_identified\": [\"list\", \"each\", \"ingredient\"], "
+        "\"hidden_nasties\": [\"Palm Oil\", \"Tartrazine E102\"], "
+        "\"health_attributes\": [\"e.g. High in protein\", \"e.g. Low sugar\"], "
+        "\"health_concerns\": [\"e.g. Contains artificial colour\", \"e.g. High sodium\"], "
+        "\"ingredient_health_score\": 70, "
         "\"not_food_image\": false}"
     )
 
     try:
-        response = requests.post("http://localhost:11434/api/generate", json={
+        response = req.post(f"{OLLAMA_BASE}/api/generate", json={
             "model": "llava",
             "prompt": prompt,
             "images": [image_data],
             "stream": False
-        }, timeout=90)
+        }, timeout=120)
 
-        raw = response.json().get("response", "{}")
-        # Strip markdown block if present
+        raw = response.json().get("response", "")
+
+        # Strip markdown fences if present
         if "```json" in raw:
-            raw = raw.split("```json")[1].split("```")[0]
+            parts = raw.split("```json")
+            if len(parts) > 1:
+                raw = parts[1].split("```")[0]
         elif "```" in raw:
-            raw = raw.split("```")[1].split("```")[0]
-            
-        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+            parts = raw.split("```")
+            if len(parts) > 1:
+                raw = parts[1]
+
+        # Robust JSON extraction - handles nested arrays/objects with DOTALL
+        json_match = re.search(r'\{[\s\S]*\}', raw)
 
         if not json_match:
             return jsonify({
                 "error": "unclear_image",
-                "message": "Could not identify food in this image. Please upload a clear photo showing ingredients or food items."
+                "message": "Could not read a response from the AI. Please try again with a clearer photo showing ingredients or food items."
             }), 422
 
-        nutrition = json.loads(json_match.group())
+        # Try to parse JSON, with fallback for partial/truncated JSON
+        try:
+            nutrition = json.loads(json_match.group())
+        except json.JSONDecodeError:
+            # Try to find the balanced JSON substring
+            try:
+                text = json_match.group()
+                depth = 0
+                end = 0
+                for i, ch in enumerate(text):
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end = i + 1
+                            break
+                nutrition = json.loads(text[:end])
+            except Exception:
+                return jsonify({
+                    "error": "unclear_image",
+                    "message": "The AI could not analyse this image clearly. Try a brighter, closer photo of the food or its label."
+                }), 422
 
-        # If LLaVA says it's not a food image and hasn't identified anything
+        # Only reject if explicitly flagged NOT food AND zero real ingredients found
         ingredients_list = nutrition.get("ingredients_identified", [])
-        is_empty_ingredients = len(ingredients_list) == 0 or (len(ingredients_list) == 1 and "specific ingredient" in ingredients_list[0])
-        
-        if nutrition.get("not_food_image") and is_empty_ingredients:
+        real_ingredients = [i for i in ingredients_list if i and len(str(i).strip()) > 2]
+
+        if nutrition.get("not_food_image") and len(real_ingredients) == 0:
             return jsonify({
                 "error": "unclear_image",
-                "message": "No food or ingredients detected. Please upload a clear photo showing visible ingredients (e.g. vegetables, fruits, grains, spices, or a packaged label)."
+                "message": "No food or ingredients detected. Please upload a clear photo showing food items, raw ingredients, or a packaged food label."
             }), 422
 
+    except req.exceptions.Timeout:
+        return jsonify({
+            "error": "scan_failed",
+            "message": "The AI is taking too long. Make sure Ollama is running with the llava model and try again."
+        }), 500
     except Exception as e:
         return jsonify({
             "error": "scan_failed",
-            "message": f"Scan failed: {str(e)}. Make sure Ollama is running with the llava model."
+            "message": f"Scan failed: {str(e)}. Make sure Ollama is running with the llava model loaded."
         }), 500
 
-    # Build health warnings and Red Alerts based on values + LLaVA's health_concerns
+    # ── Build warnings, red alerts, and positives ──────────────────────────
+
     warnings = []
     red_alerts = []
-    
-    # Check LLaVA's detected health concerns for Red Alerts
-    red_flag_keywords = ['tartrazine', 'sunset yellow', 'carmoisine', 'color', 'colour', 'msg', 'artificial flavor', 'artificial flavour', 'preservative', 'trans fat', 'saturated fat', 'banned']
+
+    # Hidden nasties from the dedicated field
+    for nasty in nutrition.get("hidden_nasties", []):
+        if nasty and len(str(nasty).strip()) > 2:
+            red_alerts.append(f"🚨 {nasty} detected!")
+
+    # Check LLaVA's detected health concerns
+    red_flag_keywords = [
+        'tartrazine', 'sunset yellow', 'carmoisine', 'allura', 'e102', 'e110', 'e122', 'e129',
+        'color', 'colour', 'msg', 'monosodium', 'artificial flavor', 'artificial flavour',
+        'preservative', 'trans fat', 'hydrogenated', 'palm oil', 'sulphur', 'sulfur',
+        'sodium benzoate', 'tbhq', 'bha', 'bht', 'potassium bromate', 'maida', 'banned'
+    ]
     for concern in nutrition.get("health_concerns", []):
-        if concern and concern not in ["e.g. high in saturated fat", "e.g. processed carbohydrates", "e.g. Contains Tartrazine", "e.g. artificial flavors"]:
-            concern_lower = concern.lower()
-            if any(flag in concern_lower for flag in red_flag_keywords):
-                red_alerts.append(f"🚨 {concern}")
-            else:
-                warnings.append(f"⚠️ {concern}")
-                
-    # Numerical thresholds as additional guardrails (Red Alerts for Indian food standards)
+        if concern and len(str(concern).strip()) > 5:
+            concern_lower = str(concern).lower()
+            is_placeholder = any(p in concern_lower for p in ["e.g.", "e.g ", "example"])
+            if not is_placeholder:
+                if any(flag in concern_lower for flag in red_flag_keywords):
+                    alert_text = f"🚨 {concern}"
+                    if alert_text not in red_alerts:
+                        red_alerts.append(alert_text)
+                else:
+                    warnings.append(f"⚠️ {concern}")
+
+    # Numerical thresholds
     if nutrition.get("sugar_g", 0) > 25:
         red_alerts.append(f"🚨 High sugar content ({nutrition['sugar_g']}g) — exceeds 25g limit")
     elif nutrition.get("sugar_g", 0) > 15:
         warnings.append(f"⚠️ Moderate sugar ({nutrition['sugar_g']}g) — limit intake")
-        
-    if nutrition.get("sodium_mg", 0) > 200:
-        red_alerts.append(f"🚨 High sodium ({nutrition['sodium_mg']}mg) — exceeds 200mg limit")
-        
+
+    if nutrition.get("sodium_mg", 0) > 600:
+        red_alerts.append(f"🚨 Very high sodium ({nutrition['sodium_mg']}mg) — risky for blood pressure")
+    elif nutrition.get("sodium_mg", 0) > 300:
+        warnings.append(f"⚠️ Elevated sodium ({nutrition['sodium_mg']}mg) — consume in moderation")
+
     if nutrition.get("fat_g", 0) > 20:
         red_alerts.append(f"🚨 High fat content ({nutrition['fat_g']}g per serving)")
-        
+
     if nutrition.get("calories", 0) > 500:
         warnings.append(f"⚠️ High calorie count ({nutrition['calories']} kcal) — be mindful of portions")
 
-    # Build positives from LLaVA's health_attributes + numerical checks
+    # ── Positives ──────────────────────────────────────────────────────────
     positives = []
     for attr in nutrition.get("health_attributes", []):
-        if attr and attr not in ["e.g. rich in vitamins", "e.g. high in fibre"]:
-            positives.append(f"✓ {attr}")
+        if attr and len(str(attr).strip()) > 5:
+            is_placeholder = any(p in str(attr).lower() for p in ["e.g.", "e.g ", "example"])
+            if not is_placeholder:
+                positives.append(f"✓ {attr}")
+
     if nutrition.get("protein_g", 0) >= 10:
         positives.append(f"✓ Good source of protein ({nutrition['protein_g']}g per serving)")
     if nutrition.get("sugar_g", 0) <= 5:
-        positives.append("✓ Low sugar content — suitable for diabetics")
-    if nutrition.get("sodium_mg", 0) <= 300:
+        positives.append("✓ Low sugar — suitable for diabetics")
+    if nutrition.get("sodium_mg", 0) <= 150:
         positives.append("✓ Low sodium — heart-friendly")
-    if nutrition.get("fat_g", 0) <= 5:
+    if nutrition.get("fat_g", 0) <= 3:
         positives.append("✓ Low fat — good for weight management")
     if nutrition.get("fiber_g", 0) >= 5:
         positives.append(f"✓ High dietary fibre ({nutrition['fiber_g']}g) — great for digestion")
 
-    # AI tip based on specifically identified ingredients
-    ingredients = nutrition.get("ingredients_identified", [])
-    real_ingredients = [i for i in ingredients if i and not i.startswith("specific ingredient")]
-    if real_ingredients:
-        ingr_str = ', '.join(real_ingredients[:4])
+    # ── AI Tip ─────────────────────────────────────────────────────────────
+    shown_ingredients = real_ingredients if real_ingredients else ingredients_list[:4]
+    if shown_ingredients:
+        ingr_str = ', '.join(str(i) for i in shown_ingredients[:4])
         ai_tip = (
-            f"The identified ingredients ({ingr_str}) are most nutritious when fresh and minimally processed. "
-            "Consider steaming or lightly sautéing rather than deep-frying to retain maximum nutrients."
+            f"Identified: {ingr_str}. "
+            "For maximum nutrition, steam or lightly sauté rather than deep-fry. "
+            "Pair with whole grains for a complete meal."
         )
     else:
         ai_tip = "Eat a variety of colourful vegetables and whole grains for a balanced, nutritious diet."
 
-    # Use LLaVA's ingredient-based health score if provided; fall back to calculated score
+    # ── Score ───────────────────────────────────────────────────────────────
     llava_score = nutrition.get("ingredient_health_score")
     if llava_score and isinstance(llava_score, (int, float)) and 0 <= llava_score <= 100:
-        # Blend LLaVA's ingredient-aware score (70%) with nutrition-calculated score (30%)
         calc_score = calculate_nutrition(nutrition)
         score = round(0.70 * float(llava_score) + 0.30 * calc_score)
     else:
         score = calculate_nutrition(nutrition)
 
     nutrition["health_score"] = score
-    nutrition["warnings"] = list(dict.fromkeys(warnings))   # deduplicate
-    nutrition["red_alerts"] = list(dict.fromkeys(red_alerts)) # deduplicate
-    nutrition["positives"] = list(dict.fromkeys(positives))  # deduplicate
+    nutrition["warnings"] = list(dict.fromkeys(warnings))
+    nutrition["red_alerts"] = list(dict.fromkeys(red_alerts))
+    nutrition["positives"] = list(dict.fromkeys(positives))
     nutrition["ai_tip"] = ai_tip
-    nutrition["ingredients_identified"] = real_ingredients if real_ingredients else ingredients
+    nutrition["ingredients_identified"] = real_ingredients if real_ingredients else ingredients_list
     nutrition["verdict"] = (
         "✅ Healthy choice" if score >= 70
         else ("⚠️ Moderate — consume in moderation" if score >= 45

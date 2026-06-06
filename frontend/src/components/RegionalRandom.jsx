@@ -1,5 +1,5 @@
 import { useState } from "react"
-import axios from "axios"
+import axios from "../axios"
 import RecipeLoader from "./RecipeLoader"
 
 // ── North Indian Dish list (name, veg, time in minutes) ───────────────────

@@ -27,7 +27,7 @@ const FEATURES = [
   { icon: "📸", title: "Vision Scanner", desc: "Snap your fridge — our AI identifies ingredients instantly" },
   { icon: "🌏", title: "Regional Mastery", desc: "Authentic North & South Indian recipes from a 30-year master chef AI" },
   { icon: "💊", title: "Nutrition Engine", desc: "Macro tracking, health scores & personalised dietary warnings" },
-  { icon: "📱", title: "WhatsApp Share", desc: "Send recipes directly to anyone via WhatsApp with one tap" },
+  { icon: "📄", title: "PDF Download", desc: "Download any recipe as a beautifully formatted PDF to save or print" },
   { icon: "🎡", title: "Cuisine Wheel", desc: "Spin the wheel and let AI surprise you with a regional delicacy" },
 ]
 
@@ -35,7 +35,7 @@ const STATS = [
   { value: 500, suffix: "+", label: "Authentic Recipes" },
   { value: 28, suffix: "", label: "Indian Cuisines" },
   { value: 100, suffix: "%", label: "AI Powered" },
-  { value: 0, suffix: " DB", label: "Data Stored" },
+  { value: 100, suffix: "%", label: "Private & Local" },
 ]
 
 export default function LandingPage({ onLogin }) {

@@ -39,7 +39,7 @@ function InputField({ icon, type, placeholder, value, onChange, id }) {
 
 export default function LoginPage({ onSuccess, onBack }) {
   const [mode, setMode] = useState("login") // login | register
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" })
+  const [form, setForm] = useState({ name: "", phone: "", password: "", confirmPassword: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -54,6 +54,7 @@ export default function LoginPage({ onSuccess, onBack }) {
 
     if (mode === "register") {
       if (!form.name.trim()) return setError("Please enter your name")
+      if (!/^[6-9]\d{9}$/.test(form.phone)) return setError("Please enter a valid 10-digit Indian mobile number")
       if (form.password !== form.confirmPassword) return setError("Passwords do not match")
       if (form.password.length < 6) return setError("Password must be at least 6 characters")
     }
@@ -61,12 +62,12 @@ export default function LoginPage({ onSuccess, onBack }) {
     setLoading(true)
     try {
       const endpoint = mode === "login"
-        ? "http://localhost:5000/api/auth/login"
-        : "http://localhost:5000/api/auth/register"
+        ? "/api/auth/login"
+        : "/api/auth/register"
 
       const body = mode === "login"
-        ? { email: form.email, password: form.password }
-        : { name: form.name, email: form.email, password: form.password }
+        ? { phone: form.phone, password: form.password }
+        : { name: form.name, phone: form.phone, password: form.password }
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -93,7 +94,7 @@ export default function LoginPage({ onSuccess, onBack }) {
     setMode(m => m === "login" ? "register" : "login")
     setError("")
     setSuccess("")
-    setForm({ name: "", email: "", password: "", confirmPassword: "" })
+    setForm({ name: "", phone: "", password: "", confirmPassword: "" })
   }
 
   return (
@@ -248,7 +249,7 @@ export default function LoginPage({ onSuccess, onBack }) {
               {mode === "register" && (
                 <InputField id="reg-name" icon="👤" type="text" placeholder="Full name" value={form.name} onChange={set("name")} />
               )}
-              <InputField id="login-email" icon="✉️" type="email" placeholder="Email address" value={form.email} onChange={set("email")} />
+              <InputField id="login-phone" icon="📱" type="tel" placeholder="Phone number (e.g. 9876543210)" value={form.phone} onChange={set("phone")} />
               <InputField id="login-password" icon="🔒" type="password" placeholder="Password" value={form.password} onChange={set("password")} />
               {mode === "register" && (
                 <InputField id="reg-confirm" icon="🔑" type="password" placeholder="Confirm password" value={form.confirmPassword} onChange={set("confirmPassword")} />

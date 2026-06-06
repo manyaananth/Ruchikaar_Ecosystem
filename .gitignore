@@ -1,7 +1,12 @@
 node_modules/
 venv/
+.venv/
 __pycache__/
 *.pyc
 .env
 instance/
 .DS_Store
+frontend/dist/
+frontend/node_modules/
+*.sqlite3
+*.db

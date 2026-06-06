@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { Camera, ShieldAlert, CheckCircle, AlertTriangle, XCircle, Info, ImageOff } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 /* ── Rating helpers ────────────────────────────────── */
 // Convert 0-100 internal score to 0-10 display
@@ -423,6 +423,33 @@ export default function HealthAuditTab({ ctx }) {
                   {w}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Hidden Nasties ── */}
+          {result.hidden_nasties?.length > 0 && (
+            <div style={{ marginBottom: "1rem" }}>
+              <p style={{
+                fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+                textTransform: "uppercase", letterSpacing: "0.1em",
+                color: "#dc2626", fontWeight: 800, margin: "0 0 8px",
+                display: "flex", alignItems: "center", gap: 6
+              }}>
+                <AlertTriangle size={14} color="#dc2626" />
+                Hidden Harmful Ingredients Detected
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {result.hidden_nasties.map((nasty, i) => (
+                  <span key={i} style={{
+                    fontSize: 12, padding: "5px 12px", borderRadius: 99,
+                    background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)",
+                    color: isDark ? "#fca5a5" : "#7f1d1d",
+                    fontFamily: "'DM Sans', sans-serif", fontWeight: 600
+                  }}>
+                    ⚠ {nasty}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 

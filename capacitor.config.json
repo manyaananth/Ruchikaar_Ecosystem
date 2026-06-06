@@ -1,0 +1,8 @@
+{
+  "appId": "com.ruchikaar.app",
+  "appName": "Ruchikaar",
+  "webDir": "frontend/dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

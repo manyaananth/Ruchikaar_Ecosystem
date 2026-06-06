@@ -4,14 +4,13 @@ import LoginPage from "./components/LoginPage"
 import Onboarding from "./components/Onboarding"
 import Home from "./components/Home"
 import RecipeResult from "./components/RecipeResult"
-import HealthAudit from "./components/HealthAudit"
 import ProfilePage from "./components/ProfilePage"
 import SavedRecipesPage from "./components/SavedRecipesPage"
 import FridgeInventoryPage from "./components/FridgeInventoryPage"
 
 export default function App() {
   const [isDark, setIsDark] = useState(true)
-  // screens: landing | login | onboarding | home | result | health | profile | saved | inventory
+  // screens: landing | login | onboarding | home | result | profile | saved | inventory
   const [screen, setScreen] = useState("landing")
   const [prefs, setPrefs] = useState({ time: 30, servings: 2, vegOnly: false })
   const [recipe, setRecipe] = useState(null)
@@ -46,7 +45,6 @@ export default function App() {
         {screen === "onboarding" && <Onboarding ctx={ctx} />}
         {screen === "home" && <Home ctx={ctx} />}
         {screen === "result" && <RecipeResult ctx={ctx} />}
-        {screen === "health" && <HealthAudit ctx={ctx} />}
         {screen === "profile" && <ProfilePage ctx={ctx} />}
         {screen === "saved" && <SavedRecipesPage ctx={ctx} />}
         {screen === "inventory" && <FridgeInventoryPage ctx={ctx} />}

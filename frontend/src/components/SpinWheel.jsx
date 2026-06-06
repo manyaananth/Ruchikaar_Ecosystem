@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import axios from "axios"
+import axios from "../axios"
 import WeatherRegionPanel from "./WeatherRegionPanel"
 import RecipeLoader from "./RecipeLoader"
 

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { Camera, Plus, X, Zap } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 import WeatherRegionPanel from "./WeatherRegionPanel"
 import RecipeLoader from "./RecipeLoader"
 

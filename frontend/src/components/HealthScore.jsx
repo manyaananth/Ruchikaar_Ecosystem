@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Activity, TrendingUp, AlertCircle, Camera } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 export default function HealthScore({ isDark }) {
   const [summary, setSummary] = useState(null)

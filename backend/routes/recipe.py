@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-import requests, json, re
+import requests, json, re, os
 from extensions import db
 from models import Recipe, User
 from utils.weather import get_weather
@@ -7,8 +7,9 @@ from utils.nutrition import calculate_nutrition
 
 recipe_bp = Blueprint("recipe", __name__)
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL      = "phi3"
+OLLAMA_BASE = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL  = f"{OLLAMA_BASE}/api/generate"
+MODEL       = os.getenv("OLLAMA_MODEL", "phi3")
 
 def extract_json(raw: str) -> dict:
     """Robustly extract a JSON object from LLM raw text."""

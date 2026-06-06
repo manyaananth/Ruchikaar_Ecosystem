@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Clock, Users, Bookmark, Check, Flame, Beef, Wheat, Droplets, Zap, Leaf, Info, AlertTriangle, CheckCircle } from "lucide-react"
-import axios from "axios"
+import axios from "../axios"
 
 /* ── helpers ──────────────────────────────────────── */
 function estimateCalories(n = {}) {
@@ -462,31 +462,83 @@ export default function RecipeCard({ recipe, isDark, user }) {
         </div>
       )}
 
-      {/* ── SHARE VIA TWILIO ──────────────────────────── */}
+      {/* -- DOWNLOAD AS PDF -- */}
       <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
         <button
-          onClick={async () => {
-            const phone = prompt("Enter WhatsApp number (with country code, e.g. +1234567890):")
-            if (!phone) return
-            try {
-              await axios.post("/api/notification/share", { recipe, phone })
-              alert("Recipe sent via WhatsApp!")
-            } catch (err) {
-              alert("Failed to send recipe. Make sure Twilio is configured and backend is running.")
-            }
+          onClick={() => {
+            const n = recipe.nutrition_per_serving || {}
+            const cal = n.calories || Math.round((n.protein_g || 0) * 4 + (n.carbs_g || 0) * 4 + (n.fat_g || 0) * 9)
+            const ingrHTML = recipe.ingredients_used?.length
+              ? recipe.ingredients_used.map(i => '<span style="display:inline-block;background:rgba(249,115,22,0.12);color:#ea580c;border:1px solid rgba(249,115,22,0.3);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;margin:3px;">' + i + '</span>').join("")
+              : ""
+            const stepsHTML = recipe.steps?.length
+              ? recipe.steps.map((s, idx) => '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;"><div style="min-width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">' + (idx+1) + '</div><p style="margin:0;font-size:13px;line-height:1.7;padding-top:4px;">' + s + '</p></div>').join("")
+              : ""
+            const metaBadges = [
+              recipe.prep_time ? '<span class="badge">Clock ' + recipe.prep_time + '</span>' : '',
+              recipe.servings ? '<span class="badge">People ' + recipe.servings + ' servings</span>' : ''
+            ].filter(Boolean).join("")
+            const html = [
+              '<!DOCTYPE html><html><head><meta charset="utf-8"/>',
+              '<title>' + recipe.title + ' — Ruchikaar</title>',
+              '<style>',
+              '@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;600;700&display=swap");',
+              '*{box-sizing:border-box}body{margin:0;padding:36px;font-family:"DM Sans",sans-serif;color:#1a0f00;background:#fff}',
+              '.hdr{background:linear-gradient(135deg,#7c2d12,#f97316);border-radius:16px;padding:28px 32px;color:#fff;margin-bottom:22px}',
+              '.hdr h1{font-family:"Playfair Display",serif;font-size:28px;margin:0 0 8px}',
+              '.hdr p{font-size:13px;opacity:.8;margin:0;line-height:1.6}',
+              '.meta{display:flex;gap:14px;margin-top:14px;font-size:12px;opacity:.85}',
+              '.badge{background:rgba(0,0,0,.2);border-radius:20px;padding:3px 12px}',
+              '.sec{background:#faf6f0;border-radius:14px;padding:18px 22px;margin-bottom:16px;border:1px solid #f0e8d8}',
+              '.sec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#f97316;margin-bottom:12px}',
+              '.ng{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}',
+              '.nb{background:#fff;border-radius:10px;padding:10px;border:1px solid #f0e8d8;text-align:center}',
+              '.nv{font-size:20px;font-weight:800;color:#f97316}.nl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;opacity:.5;margin-top:2px}',
+              '.tip{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px 18px;font-size:13px;line-height:1.65;color:#1e3a5f;margin-bottom:16px}',
+              '.foot{text-align:center;margin-top:28px;font-size:10px;opacity:.3;letter-spacing:.08em}',
+              '@media print{body{padding:16px}.hdr{-webkit-print-color-adjust:exact;print-color-adjust:exact}}',
+              '</style></head><body>',
+              '<div class="hdr">',
+              '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.75;margin-bottom:8px;">AI Generated · Ruchikaar</div>',
+              '<h1>' + recipe.title + '</h1>',
+              '<p>' + (recipe.description || "") + '</p>',
+              '<div class="meta">' + metaBadges + '</div>',
+              '</div>',
+              ingrHTML ? '<div class="sec"><div class="sec-t">Ingredients Used</div>' + ingrHTML + '</div>' : '',
+              '<div class="sec"><div class="sec-t">Nutrition Per Serving</div><div class="ng">',
+              '<div class="nb"><div class="nv">' + cal + '</div><div class="nl">kcal</div></div>',
+              '<div class="nb"><div class="nv">' + (n.protein_g||0) + 'g</div><div class="nl">Protein</div></div>',
+              '<div class="nb"><div class="nv">' + (n.carbs_g||0) + 'g</div><div class="nl">Carbs</div></div>',
+              '<div class="nb"><div class="nv">' + (n.fat_g||0) + 'g</div><div class="nl">Fats</div></div>',
+              '<div class="nb"><div class="nv">' + (n.fiber_g||Math.round((n.carbs_g||0)*0.12)) + 'g</div><div class="nl">Fibre</div></div>',
+              '<div class="nb"><div class="nv">' + (n.sodium_mg||320) + 'mg</div><div class="nl">Sodium</div></div>',
+              '</div></div>',
+              stepsHTML ? '<div class="sec"><div class="sec-t">Step-by-Step</div>' + stepsHTML + '</div>' : '',
+              recipe.ai_tip ? '<div class="tip"><strong>Chef\'s Tip:</strong> ' + recipe.ai_tip + '</div>' : '',
+              '<div class="foot">RUCHIKAAR - PRECISION COOKING, INDIAN SOUL</div>',
+              '<script>window.onload=function(){setTimeout(function(){window.print()},500)}<\/script>',
+              '</body></html>'
+            ].join("")
+            const win = window.open("", "_blank", "width=820,height=920")
+            win.document.write(html)
+            win.document.close()
           }}
           style={{
             display: "inline-flex", alignItems: "center", gap: 8,
             padding: "12px 24px", borderRadius: 99,
-            background: "#25D366", color: "#fff", border: "none",
+            background: "linear-gradient(135deg, #f97316, #ea580c)",
+            color: "#fff", border: "none",
             fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
-            cursor: "pointer", boxShadow: "0 4px 14px rgba(37,211,102,0.3)"
+            cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.35)",
+            transition: "all 0.2s"
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.551 4.14 1.597 5.945L.193 23.364l5.52-1.448c1.748.966 3.693 1.474 5.718 1.474 6.645 0 12.03-5.385 12.03-12.03S18.676 0 12.031 0zm0 21.391c-1.782 0-3.52-.479-5.048-1.385l-.36-.214-3.75.983.998-3.655-.235-.373a10.021 10.021 0 01-1.53-5.355c0-5.543 4.51-10.053 10.053-10.053 5.542 0 10.052 4.51 10.052 10.053 0 5.543-4.51 10.053-10.052 10.053zm5.525-7.535c-.302-.151-1.791-.884-2.068-.985-.276-.1-.478-.151-.678.151-.201.302-.78 .985-.956 1.186-.176.201-.352.226-.654.075-1.571-.786-2.656-1.428-3.658-2.584-.258-.3-.027-.463.124-.614.135-.135.302-.352.453-.528.151-.176.201-.302.302-.503.1-.201.05-.377-.025-.528-.075-.151-.678-1.634-.93-2.237-.246-.59-.496-.51-.678-.52-.176-.01-.377-.01-.578-.01-.201 0-.528.075-.805.377-.276.302-1.056 1.03-1.056 2.513 0 1.483 1.081 2.915 1.232 3.116.151.201 2.125 3.242 5.148 4.544 1.83.789 2.474.836 3.254.71.865-.141 2.068-.844 2.368-1.66.302-.816.302-1.518.211-1.66-.091-.141-.341-.227-.643-.378z"/>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          Share via WhatsApp
+          Download Recipe PDF
         </button>
       </div>
     </div>
